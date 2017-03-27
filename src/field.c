@@ -12,6 +12,8 @@ Field* create_empty_field(uint width, uint height) {
     }
 
     Field* result = (Field*)malloc(sizeof(Field));
+    result->width = width;
+    result->height = height;
     result->cells = cells;
 
     return result;

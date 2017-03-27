@@ -22,7 +22,7 @@ uint neighbours_count(const Field *field, int xPos, int yPos) {
 
     for (int deltaX = -1; deltaX <= 1; ++deltaX) {
         for (int deltaY = -1; deltaY <= 1; ++deltaY) {
-            if (deltaX || deltaY && get_cell(field, xPos + deltaX, yPos + deltaY) == CS_ALIVE) {
+            if ((deltaX || deltaY) && get_cell(field, xPos + deltaX, yPos + deltaY) == CS_ALIVE) {
                 ++result;
             }
         }
