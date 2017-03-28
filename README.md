@@ -13,15 +13,15 @@ Run CMake and then build the program with your favourite build system.
 Usage: life [OPTION...]
 
 Options:  
-* -t, --threads-count=THREADS   Number of threads (default: 1)
-* -w, --field-width=WIDTH    Width of game field (default: 10)
-* -h, --field-height=HEIGHT  Height of game field (default: 10)
-* -l, --game-length=TURNS    Number of turns to simulate (default: 20)
-* --glider-test          If specified, the program will run glider test
-* -?, --help                 Give this help list
-* --usage                Give a short usage message
+* _-t, --threads-count_ = **THREADS** &mdash; Number of threads (default: 1)
+* _-w, --field-width_ = **WIDTH** &mdash; Width of game field (default: 10)
+* _-h, --field-height_ = **HEIGHT** &mdash; Height of game field (default: 10)
+* _-l, --game-length_ = **TURNS** &mdash; Number of turns to simulate (default: 20)
+* _--glider-test_ &mdash; If specified, the program will run glider test
+* _-?, --help_ &mdash; Give this help list
+* _--usage_ &mdash; Give a short usage message
 
-If the --glider-test option is specified, the program will simulate a glider on
+If the _--glider-test_ option is specified, the program will simulate a glider on
 a field of the given size, that flies from the top left corner in bottom right
 direction for the given number of turns.
 
