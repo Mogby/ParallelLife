@@ -4,7 +4,7 @@ Conway's game of life implementation that runs in several threads.
 
 ## Building
 
-The code uses pthread and arpg, so it can only be compiled on systems where they are available.
+The code uses pthread and argp, so it can only be compiled on systems where they are available.
 
 Run CMake and then build the program with your favourite build system.
 
