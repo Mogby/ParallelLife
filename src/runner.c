@@ -6,21 +6,40 @@
 #include "field.h"
 #include "life.h"
 
-Runner* create_runner(uint width, uint height, uint turnsCount, uint workersCount) {
+Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount) {
     Runner *result = (Runner*)malloc(sizeof(Runner));
 
     result->turnsCount = turnsCount;
     result->currentTurn = 0;
 
-    result->field = create_random_configuration(width, height);
+    result->field = create_empty_field(width, height);
     result->tmpField = create_empty_field(width, height);
 
     result->workersCount = workersCount;
     result->workers = (pthread_t*)malloc(sizeof(pthread_t) * workersCount);
 
-    pthread_barrier_init(&result->barrier, NULL, workersCount + 1);
+    pthread_barrier_init(&result->start, NULL, workersCount + 1);
+    pthread_barrier_init(&result->finish, NULL, workersCount + 1);
 
-    sem_init(&result->semaphore, 0, 0);
+    return result;
+}
+
+Runner* create_random_runner(uint width, uint height, uint turnsCount, uint workersCount) {
+    Runner *result = create_empty_runner(width, height, turnsCount, workersCount);
+
+    result->field = create_random_configuration(width, height);
+
+    return result;
+}
+
+Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount) {
+    Runner *result = create_empty_runner(width, height, turnsCount, workersCount);
+
+    set_cell(result->field, 1, 0, 1);
+    set_cell(result->field, 2, 1, 1);
+    set_cell(result->field, 2, 2, 1);
+    set_cell(result->field, 1, 2, 1);
+    set_cell(result->field, 0, 2, 1);
 
     return result;
 }
@@ -31,30 +50,26 @@ void destroy_runner(Runner *runner) {
 
     free(runner->workers);
 
-    pthread_barrier_destroy(&runner->barrier);
-    sem_destroy(&runner->semaphore);
+    pthread_barrier_destroy(&runner->start);
+    pthread_barrier_destroy(&runner->finish);
 
     free(runner);
 }
 
-void proceed_one_step(Runner *runner, int lowerBound, int upperBound) {
-    simulate_step(runner->field, runner->tmpField, lowerBound, upperBound);
-}
-
 typedef struct _simulation_arguments_struct {
-    int lowerBound;
-    int upperBound;
+    uint lowerBound;
+    uint upperBound;
     Runner *runner;
 } SimulationsArguments;
 
 void* simulate_chunk(void *arguments) {
     SimulationsArguments *args = (SimulationsArguments*)arguments;
     while (args->runner->currentTurn < args->runner->turnsCount) {
-        sem_wait(&args->runner->semaphore);
+        pthread_barrier_wait(&args->runner->start);
 
         simulate_step(args->runner->field, args->runner->tmpField, args->lowerBound, args->upperBound);
 
-        pthread_barrier_wait(&args->runner->barrier);
+        pthread_barrier_wait(&args->runner->finish);
     }
 
     return NULL;
@@ -89,21 +104,17 @@ void run(Runner *runner) {
                    simulate_chunk, &arguments[runner->workersCount - 1]);
 
     //Printing initial state
-    print_state(runner);
+    //print_state(runner);
     while (runner->currentTurn < runner->turnsCount) {
         //Resume all workers
-        for (uint count = 0; count < runner->workersCount; ++count) {
-            sem_post(&runner->semaphore);
-        }
+        pthread_barrier_wait(&runner->start);
         
         ++runner->currentTurn;
 
         //Wait for all workers to finish
-        pthread_barrier_wait(&runner->barrier);
+        pthread_barrier_wait(&runner->finish);
 
         swap_fields(runner);
-
-        print_state(runner);
     }
 
     for (uint index = 0; index < runner->workersCount; ++index) {

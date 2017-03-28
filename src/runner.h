@@ -19,13 +19,15 @@ typedef struct _runner_struct {
     uint workersCount;
     pthread_t *workers;
 
-    pthread_barrier_t barrier;
-
-    sem_t semaphore;
+    pthread_barrier_t start;
+    pthread_barrier_t finish;
 } Runner;
 
-Runner* create_runner(uint width, uint height, uint turnsCount, uint workersCount);
+Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount);
 
+Runner* create_random_runner(uint width, uint height, uint turnsCount, uint workersCount);
+
+Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount);
 void destroy_runner(Runner *runner);
 
 void run(Runner *runner);
