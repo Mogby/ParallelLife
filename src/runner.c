@@ -1,17 +1,20 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <unistd.h>
+#include <time.h>
 #include "runner.h"
 #include "field.h"
 #include "life.h"
 
-Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount) {
+Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount, uint mult) {
     Runner *result = (Runner*)malloc(sizeof(Runner));
 
     result->turnsCount = turnsCount;
     result->currentTurn = 0;
 
+    result->mult = mult;
+    
     result->field = create_empty_field(width, height);
     result->tmpField = create_empty_field(width, height);
 
@@ -24,16 +27,16 @@ Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint worke
     return result;
 }
 
-Runner* create_random_runner(uint width, uint height, uint turnsCount, uint workersCount) {
-    Runner *result = create_empty_runner(width, height, turnsCount, workersCount);
+Runner* create_random_runner(uint width, uint height, uint turnsCount, uint workersCount,uint mult) {
+    Runner *result = create_empty_runner(width, height, turnsCount, workersCount, mult);
 
     result->field = create_random_configuration(width, height);
 
     return result;
 }
 
-Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount) {
-    Runner *result = create_empty_runner(width, height, turnsCount, workersCount);
+Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount, uint mult) {
+    Runner *result = create_empty_runner(width, height, turnsCount, workersCount, mult);
 
     set_cell(result->field, 1, 0, 1);
     set_cell(result->field, 2, 1, 1);
@@ -81,6 +84,8 @@ void swap_fields(Runner *runner) {
     runner->tmpField = temporary;
 }
 
+
+
 void run(Runner *runner) {
     SimulationsArguments *arguments = malloc(sizeof(SimulationsArguments) * runner->workersCount);
     uint chunkSize = runner->field->width * runner->field->height / runner->workersCount;
@@ -113,7 +118,18 @@ void run(Runner *runner) {
 
         //Wait for all workers to finish
         pthread_barrier_wait(&runner->finish);
-
+        
+        //print if -x opt
+        if( runner->mult != 0) {
+	    print_state(runner);
+        
+            struct timespec t;
+            struct timespec* t2;
+            t.tv_sec = 0;
+            assert(runner->mult < 20);
+            t.tv_nsec = 100000000L / runner->mult ;
+            nanosleep(&t,t2);
+        }
         swap_fields(runner);
     }
 
@@ -135,4 +151,6 @@ void print_state(const Runner *runner) {
         }
         puts("");
     }
+    
+    printf("\n");
 }

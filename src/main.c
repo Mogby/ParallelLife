@@ -7,6 +7,7 @@ typedef struct _parameters_struct {
     uint fieldWidth;
     uint fieldHeight;
     uint turnsCount;
+    uint mult;
     char gliderTest;
 } Parameters;
 
@@ -43,6 +44,13 @@ error_t parse_argument(int key, char *arg, struct argp_state *state) {
             }
             parameters->turnsCount = value;
             break;
+        case 'x':
+            value = atoi(arg);
+            if (value <= 0) {
+                return EINVAL;
+            }
+            parameters->mult = value;
+            break;
         case -1:
             parameters->gliderTest = 1;
             break;
@@ -54,7 +62,7 @@ error_t parse_argument(int key, char *arg, struct argp_state *state) {
 }
 
 Parameters get_parameters(int argc, char **argv) {
-    Parameters parameters = { 1, 10, 10, 20, 0 };
+    Parameters parameters = { 1, 10, 10, 20, 0,0 };
 
     struct argp_option options[] = {
             { "threads-count", 't', "THREADS", 0, "Number of threads (default: 1)", 0 },
@@ -62,6 +70,7 @@ Parameters get_parameters(int argc, char **argv) {
             { "field-height", 'h', "HEIGHT", 0, "Height of game field (default: 10)", 2 },
             { "game-length", 'l', "TURNS", 0, "Number of turns to simulate (default: 20)", 3 },
             { "glider-test", -1, 0, OPTION_ARG_OPTIONAL, "If specified, the program will run glider test", 4 },
+            { "multiple-number", 'x', "MULT", 0, "Mutiple number to speed up output", 5 },
             { 0 }
     };
 
@@ -91,10 +100,10 @@ int main(int argc, char **argv) {
     Runner *runner;
     if (parameters.gliderTest) {
         runner = create_glider_test_runner(parameters.fieldWidth, parameters.fieldHeight,
-                                           parameters.turnsCount, parameters.threadsCount);
+                                           parameters.turnsCount, parameters.threadsCount, parameters.mult);
     } else {
         runner = create_random_runner(parameters.fieldWidth, parameters.fieldHeight,
-                                      parameters.turnsCount, parameters.threadsCount);
+                                      parameters.turnsCount, parameters.threadsCount, parameters.mult);
     }
     run(runner);
     print_state(runner);
