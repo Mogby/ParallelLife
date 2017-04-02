@@ -6,9 +6,6 @@ Conway's game of life implementation that runs in several threads.
 
 The code uses pthread and argp, so it can only be compiled on systems where they are available.
 
-Ncurses needed:
-* sudo apt-get install libncurses-dev
-
 Run CMake and then build the program with your favourite build system.
 
 ## Running
@@ -20,7 +17,6 @@ Options:
 * _-w, --field-width_ = **WIDTH** &mdash; Width of game field (default: 10)
 * _-h, --field-height_ = **HEIGHT** &mdash; Height of game field (default: 10)
 * _-l, --game-length_ = **TURNS** &mdash; Number of turns to simulate (default: 20)
-* _-x, --multiple-number_ = **MULT** &mdash; Multiplie number (default: 0)
 * _--glider-test_ &mdash; If specified, the program will run glider test
 * _-?, --help_ &mdash; Give this help list
 * _--usage_ &mdash; Give a short usage message
