@@ -34,4 +34,6 @@ void run(Runner *runner);
 
 void print_state(const Runner *runner);
 
+void print_state_nc(const Runner *runner);
+
 #endif

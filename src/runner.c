@@ -112,9 +112,6 @@ void run(Runner *runner) {
 
     //Printing initial state
     //print_state(runner);
-    if(runner->mult != 0 ){
-        initsrc();
-    }
     while (runner->currentTurn < runner->turnsCount) {
         //Resume all workers
         pthread_barrier_wait(&runner->start);
@@ -128,7 +125,7 @@ void run(Runner *runner) {
         if( runner->mult != 0) {
 	    clear();
             print_state_nc(runner);
-        
+            refresh(); 
             struct timespec t;
             struct timespec* t2;
             t.tv_sec = 0;
@@ -141,9 +138,6 @@ void run(Runner *runner) {
 
     for (uint index = 0; index < runner->workersCount; ++index) {
         pthread_join(runner->workers[index], 0);
-    }
-    if(runner->mult != 0){
-        endwin();
     }
 }
 
@@ -164,7 +158,7 @@ void print_state(const Runner *runner) {
     printf("\n");
 }
 
-void print_state_to_nc(const Runner *runner) {
+void print_state_nc(const Runner *runner) {
     printw("Turn %d:\n", runner->currentTurn);
 
     for (uint yPos = 0; yPos < runner->field->height; ++yPos) {
@@ -178,5 +172,5 @@ void print_state_to_nc(const Runner *runner) {
         printw("\n");
     }
     
-    printf("\n");
+    printw("\n");
 }

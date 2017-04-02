@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <argp.h>
+#include <ncurses.h>
 #include "runner.h"
 
 typedef struct _parameters_struct {
@@ -105,9 +106,15 @@ int main(int argc, char **argv) {
         runner = create_random_runner(parameters.fieldWidth, parameters.fieldHeight,
                                       parameters.turnsCount, parameters.threadsCount, parameters.mult);
     }
+    if(parameters.mult != 0){
+        initscr();
+    }
     run(runner);
-    print_state(runner);
+    if(parameters.mult != 0){
+        endwin();
+    } else {
+        print_state(runner);
+    }
     destroy_runner(runner);
-
     return 0;
 }

@@ -6,6 +6,9 @@ Conway's game of life implementation that runs in several threads.
 
 The code uses pthread and argp, so it can only be compiled on systems where they are available.
 
+Ncurses needed:
+* sudo apt-get install libncurses-dev
+
 Run CMake and then build the program with your favourite build system.
 
 ## Running
