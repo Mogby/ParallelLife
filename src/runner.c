@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
+#include <ncurses.h>
 #include "runner.h"
 #include "field.h"
 #include "life.h"
+
 
 Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount, uint mult) {
     Runner *result = (Runner*)malloc(sizeof(Runner));
@@ -110,6 +112,9 @@ void run(Runner *runner) {
 
     //Printing initial state
     //print_state(runner);
+    if(runner->mult != 0 ){
+        initsrc();
+    }
     while (runner->currentTurn < runner->turnsCount) {
         //Resume all workers
         pthread_barrier_wait(&runner->start);
@@ -121,7 +126,8 @@ void run(Runner *runner) {
         
         //print if -x opt
         if( runner->mult != 0) {
-	    print_state(runner);
+	    clear();
+            print_state_nc(runner);
         
             struct timespec t;
             struct timespec* t2;
@@ -135,6 +141,9 @@ void run(Runner *runner) {
 
     for (uint index = 0; index < runner->workersCount; ++index) {
         pthread_join(runner->workers[index], 0);
+    }
+    if(runner->mult != 0){
+        endwin();
     }
 }
 
@@ -150,6 +159,23 @@ void print_state(const Runner *runner) {
             }
         }
         puts("");
+    }
+    
+    printf("\n");
+}
+
+void print_state_to_nc(const Runner *runner) {
+    printw("Turn %d:\n", runner->currentTurn);
+
+    for (uint yPos = 0; yPos < runner->field->height; ++yPos) {
+        for (uint xPos = 0; xPos < runner->field->width; ++xPos) {
+            if (get_cell(runner->field, xPos, yPos) == CS_ALIVE) {
+                printw("X");
+            } else {
+                printw(".");
+            }
+        }
+        printw("\n");
     }
     
     printf("\n");
