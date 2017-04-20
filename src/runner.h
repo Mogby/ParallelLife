@@ -17,7 +17,8 @@ typedef struct _runner_struct {
     Field *tmpField;
 
     uint workersCount;
-    pthread_t *workers;
+    pid_t *workers;
+    int shm;
 
     sem_t *startSem;
     sem_t *middleSem;
@@ -31,6 +32,8 @@ Runner* create_random_runner(uint width, uint height, uint turnsCount, uint work
 Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount);
 
 void destroy_runner(Runner *runner);
+
+void copy_runner(void *dest, Field *field);
 
 void run(Runner *runner);
 

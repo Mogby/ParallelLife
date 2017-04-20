@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <memory.h>
 
 #include "runner.h"
 #include "field.h"
@@ -16,6 +17,7 @@ Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint worke
     result->tmpField = create_empty_field(width, height);
 
     result->workersCount = workersCount;
+
     result->workers = (pthread_t*)malloc(sizeof(pthread_t) * workersCount);
 
     result->startSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
@@ -64,6 +66,11 @@ void destroy_runner(Runner *runner) {
     }
 
     free(runner);
+}
+
+void copy_runner(void *dest, Field *field) {
+    memcpy(dest, (void*)field, sizeof(Field));
+    dest = (void*)((char*)dest + sizeof(Field));
 }
 
 typedef struct _simulation_arguments_struct {

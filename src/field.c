@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <memory.h>
 #include "field.h"
 
 Field* create_empty_field(uint width, uint height) {
