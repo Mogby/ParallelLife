@@ -18,8 +18,15 @@ Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint worke
     result->workersCount = workersCount;
     result->workers = (pthread_t*)malloc(sizeof(pthread_t) * workersCount);
 
-    pthread_barrier_init(&result->start, NULL, workersCount + 1);
-    pthread_barrier_init(&result->finish, NULL, workersCount + 1);
+    result->startSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
+    result->middleSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
+    result->finishSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
+
+    for (uint index = 0; index < workersCount; ++index) {
+        sem_init(result->startSem + index, 0, 0);
+        sem_init(result->middleSem + index, 0, 0);
+        sem_init(result->finishSem + index, 0, 0);
+    }
 
     return result;
 }
@@ -50,8 +57,11 @@ void destroy_runner(Runner *runner) {
 
     free(runner->workers);
 
-    pthread_barrier_destroy(&runner->start);
-    pthread_barrier_destroy(&runner->finish);
+    for (uint index = 0; index < runner->workersCount; ++index) {
+        sem_destroy(runner->startSem + index);
+        sem_destroy(runner->middleSem + index);
+        sem_destroy(runner->finishSem + index);
+    }
 
     free(runner);
 }
@@ -59,17 +69,20 @@ void destroy_runner(Runner *runner) {
 typedef struct _simulation_arguments_struct {
     uint lowerBound;
     uint upperBound;
+    uint workerId;
     Runner *runner;
-} SimulationsArguments;
+} SimulationArguments;
 
 void* simulate_chunk(void *arguments) {
-    SimulationsArguments *args = (SimulationsArguments*)arguments;
+    SimulationArguments *args = (SimulationArguments*)arguments;
     while (args->runner->currentTurn < args->runner->turnsCount) {
-        pthread_barrier_wait(&args->runner->start);
+        sem_post(args->runner->startSem + args->workerId);
 
         simulate_step(args->runner->field, args->runner->tmpField, args->lowerBound, args->upperBound);
 
-        pthread_barrier_wait(&args->runner->finish);
+        sem_post(args->runner->middleSem + args->workerId);
+
+        sem_wait(args->runner->finishSem + args->workerId);
     }
 
     return NULL;
@@ -82,7 +95,7 @@ void swap_fields(Runner *runner) {
 }
 
 void run(Runner *runner) {
-    SimulationsArguments *arguments = malloc(sizeof(SimulationsArguments) * runner->workersCount);
+    SimulationArguments *arguments = malloc(sizeof(SimulationArguments) * runner->workersCount);
     uint chunkSize = runner->field->width * runner->field->height / runner->workersCount;
 
     assert(runner->workersCount);
@@ -91,6 +104,7 @@ void run(Runner *runner) {
     for (uint index = 0; index < runner->workersCount - 1; ++index) {
         arguments[index].lowerBound = index * chunkSize;
         arguments[index].upperBound = (index + 1) * chunkSize;
+        arguments[index].workerId = index;
         arguments[index].runner = runner;
         pthread_create(&runner->workers[index], 0, simulate_chunk, &arguments[index]);
     }
@@ -103,18 +117,25 @@ void run(Runner *runner) {
     pthread_create(&runner->workers[runner->workersCount - 1], 0,
                    simulate_chunk, &arguments[runner->workersCount - 1]);
 
-    //Printing initial state
-    //print_state(runner);
     while (runner->currentTurn < runner->turnsCount) {
-        //Resume all workers
-        pthread_barrier_wait(&runner->start);
-        
+        //Waiting for workers to start a new iteration
+        for (uint index = 0; index < runner->workersCount; ++index) {
+            sem_wait(runner->startSem + index);
+        }
+
         ++runner->currentTurn;
 
         //Wait for all workers to finish
-        pthread_barrier_wait(&runner->finish);
+        for (uint index = 0; index < runner->workersCount; ++index) {
+            sem_wait(runner->middleSem + index);
+        }
 
         swap_fields(runner);
+
+        //Resume workers;
+        for (uint index = 0; index < runner->workersCount; ++index) {
+            sem_post(runner->finishSem + index);
+        }
     }
 
     for (uint index = 0; index < runner->workersCount; ++index) {
