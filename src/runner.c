@@ -100,22 +100,20 @@ void run(Runner *runner) {
 
     assert(runner->workersCount);
 
+    for (uint index = 0; index < runner->workersCount; ++index) {
+        if (index == runner->workersCount - 1) {
+            //If area of field is not divisible by number of workers, the last worker must take all remaining cells
+            arguments[runner->workersCount - 1].lowerBound = (runner->workersCount - 1) * chunkSize;
+            arguments[runner->workersCount - 1].upperBound = runner->field->width * runner->field->height;
+        } else {
+            arguments[index].lowerBound = index * chunkSize;
+            arguments[index].upperBound = (index + 1) * chunkSize;
+        }
 
-    for (uint index = 0; index < runner->workersCount - 1; ++index) {
-        arguments[index].lowerBound = index * chunkSize;
-        arguments[index].upperBound = (index + 1) * chunkSize;
         arguments[index].workerId = index;
         arguments[index].runner = runner;
         pthread_create(&runner->workers[index], 0, simulate_chunk, &arguments[index]);
     }
-
-    //If area of field is not divisible by number of workers, the last worker must take all remaining cells
-    arguments[runner->workersCount - 1].lowerBound = (runner->workersCount - 1) * chunkSize;
-    arguments[runner->workersCount - 1].upperBound = runner->field->width * runner->field->height;
-    arguments[runner->workersCount - 1].runner = runner;
-
-    pthread_create(&runner->workers[runner->workersCount - 1], 0,
-                   simulate_chunk, &arguments[runner->workersCount - 1]);
 
     while (runner->currentTurn < runner->turnsCount) {
         //Waiting for workers to start a new iteration
