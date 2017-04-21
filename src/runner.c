@@ -1,14 +1,16 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <memory.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include "shm_malloc.h"
 
 #include "runner.h"
 #include "field.h"
 #include "life.h"
 
 Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount) {
-    Runner *result = (Runner*)malloc(sizeof(Runner));
+    Runner *result = (Runner*)shm_malloc(sizeof(Runner));
 
     result->turnsCount = turnsCount;
     result->currentTurn = 0;
@@ -18,16 +20,16 @@ Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint worke
 
     result->workersCount = workersCount;
 
-    result->workers = (pthread_t*)malloc(sizeof(pthread_t) * workersCount);
+    result->workers = (pid_t*)shm_malloc(sizeof(pid_t) * workersCount);
 
-    result->startSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
-    result->middleSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
-    result->finishSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
+    result->startSem = (sem_t**)shm_malloc(sizeof(sem_t*) * workersCount);
+    result->middleSem = (sem_t**)shm_malloc(sizeof(sem_t*) * workersCount);
+    result->finishSem = (sem_t**)shm_malloc(sizeof(sem_t*) * workersCount);
 
     for (uint index = 0; index < workersCount; ++index) {
-        sem_init(result->startSem + index, 0, 0);
-        sem_init(result->middleSem + index, 0, 0);
-        sem_init(result->finishSem + index, 0, 0);
+        result->startSem[index] = shm_create_semaphore();
+        result->middleSem[index] = shm_create_semaphore();
+        result->finishSem[index] = shm_create_semaphore();
     }
 
     return result;
@@ -53,26 +55,6 @@ Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint
     return result;
 }
 
-void destroy_runner(Runner *runner) {
-    destroy_field(runner->field);
-    destroy_field(runner->tmpField);
-
-    free(runner->workers);
-
-    for (uint index = 0; index < runner->workersCount; ++index) {
-        sem_destroy(runner->startSem + index);
-        sem_destroy(runner->middleSem + index);
-        sem_destroy(runner->finishSem + index);
-    }
-
-    free(runner);
-}
-
-void copy_runner(void *dest, Field *field) {
-    memcpy(dest, (void*)field, sizeof(Field));
-    dest = (void*)((char*)dest + sizeof(Field));
-}
-
 typedef struct _simulation_arguments_struct {
     uint lowerBound;
     uint upperBound;
@@ -80,16 +62,26 @@ typedef struct _simulation_arguments_struct {
     Runner *runner;
 } SimulationArguments;
 
-void* simulate_chunk(void *arguments) {
-    SimulationArguments *args = (SimulationArguments*)arguments;
+void* simulate_chunk(SimulationArguments *args) {
+    int out;
+
+    assert(!sem_getvalue(args->runner->startSem[args->workerId], &out));
+    assert(!out);
+
+    assert(!sem_getvalue(args->runner->middleSem[args->workerId], &out));
+    assert(!out);
+
+    assert(!sem_getvalue(args->runner->finishSem[args->workerId], &out));
+    assert(!out);
+
     while (args->runner->currentTurn < args->runner->turnsCount) {
-        sem_post(args->runner->startSem + args->workerId);
+        sem_post(args->runner->startSem[args->workerId]);
 
         simulate_step(args->runner->field, args->runner->tmpField, args->lowerBound, args->upperBound);
 
-        sem_post(args->runner->middleSem + args->workerId);
+        sem_post(args->runner->middleSem[args->workerId]);
 
-        sem_wait(args->runner->finishSem + args->workerId);
+        sem_wait(args->runner->finishSem[args->workerId]);
     }
 
     return NULL;
@@ -101,17 +93,18 @@ void swap_fields(Runner *runner) {
     runner->tmpField = temporary;
 }
 
-void run(Runner *runner) {
+int run(Runner *runner) {
     SimulationArguments *arguments = malloc(sizeof(SimulationArguments) * runner->workersCount);
     uint chunkSize = runner->field->width * runner->field->height / runner->workersCount;
 
     assert(runner->workersCount);
 
+    pid_t pid;
     for (uint index = 0; index < runner->workersCount; ++index) {
         if (index == runner->workersCount - 1) {
             //If area of field is not divisible by number of workers, the last worker must take all remaining cells
-            arguments[runner->workersCount - 1].lowerBound = (runner->workersCount - 1) * chunkSize;
-            arguments[runner->workersCount - 1].upperBound = runner->field->width * runner->field->height;
+            arguments[index].lowerBound = index * chunkSize;
+            arguments[index].upperBound = runner->field->width * runner->field->height;
         } else {
             arguments[index].lowerBound = index * chunkSize;
             arguments[index].upperBound = (index + 1) * chunkSize;
@@ -119,33 +112,53 @@ void run(Runner *runner) {
 
         arguments[index].workerId = index;
         arguments[index].runner = runner;
-        pthread_create(&runner->workers[index], 0, simulate_chunk, &arguments[index]);
+
+        int out;
+
+        assert(!sem_getvalue(runner->startSem[index], &out));
+        assert(!out);
+
+        assert(!sem_getvalue(runner->middleSem[index], &out));
+        assert(!out);
+
+        assert(!sem_getvalue(runner->finishSem[index], &out));
+        assert(!out);
+
+        pid = fork();
+        if (pid) {
+            runner->workers[index] = pid;
+        } else {
+            simulate_chunk(arguments + index);
+            return 0;
+        }
     }
 
     while (runner->currentTurn < runner->turnsCount) {
         //Waiting for workers to start a new iteration
         for (uint index = 0; index < runner->workersCount; ++index) {
-            sem_wait(runner->startSem + index);
+            sem_wait(runner->startSem[index]);
         }
 
         ++runner->currentTurn;
 
         //Wait for all workers to finish
         for (uint index = 0; index < runner->workersCount; ++index) {
-            sem_wait(runner->middleSem + index);
+            sem_wait(runner->middleSem[index]);
         }
 
         swap_fields(runner);
 
         //Resume workers;
         for (uint index = 0; index < runner->workersCount; ++index) {
-            sem_post(runner->finishSem + index);
+            sem_post(runner->finishSem[index]);
         }
     }
 
     for (uint index = 0; index < runner->workersCount; ++index) {
-        pthread_join(runner->workers[index], 0);
+        waitpid(runner->workers[index], NULL, 0);
     }
+
+    return 1;
 }
 
 void print_state(const Runner *runner) {

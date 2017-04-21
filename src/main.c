@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <argp.h>
 #include "runner.h"
+#include "shm_malloc.h"
 
 typedef struct _parameters_struct {
     uint threadsCount;
@@ -15,7 +16,7 @@ error_t parse_argument(int key, char *arg, struct argp_state *state) {
 
     int value;
     switch(key) {
-        case 't':
+        case 'p':
             value = atoi(arg);
             if (value <= 0) {
                 return EINVAL;
@@ -57,7 +58,7 @@ Parameters get_parameters(int argc, char **argv) {
     Parameters parameters = { 1, 10, 10, 20, 0 };
 
     struct argp_option options[] = {
-            { "threads-count", 't', "THREADS", 0, "Number of threads (default: 1)", 0 },
+            { "processes-count", 'p', "PROCESSES", 0, "Number of processes (default: 1)", 0 },
             { "field-width", 'w', "WIDTH", 0, "Width of game field (default: 10)", 1 },
             { "field-height", 'h', "HEIGHT", 0, "Height of game field (default: 10)", 2 },
             { "game-length", 'l', "TURNS", 0, "Number of turns to simulate (default: 20)", 3 },
@@ -96,9 +97,25 @@ int main(int argc, char **argv) {
         runner = create_random_runner(parameters.fieldWidth, parameters.fieldHeight,
                                       parameters.turnsCount, parameters.threadsCount);
     }
-    run(runner);
+
+    if (!run(runner)) {
+        shm_close_sems();
+        shm_free_sems();
+        shm_unlink_all();
+        shm_free_records();
+
+        return 0;
+    }
+
     print_state(runner);
-    destroy_runner(runner);
+
+    shm_close_sems();
+    shm_destroy_sems();
+    shm_free_sems();
+
+    shm_unmap_and_close_all();
+    shm_unlink_all();
+    shm_free_records();
 
     return 0;
 }

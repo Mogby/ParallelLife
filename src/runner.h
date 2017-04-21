@@ -2,7 +2,6 @@
 
 #define RUNNER_H
 
-#include <pthread.h>
 #include <semaphore.h>
 
 typedef unsigned int uint;
@@ -18,11 +17,10 @@ typedef struct _runner_struct {
 
     uint workersCount;
     pid_t *workers;
-    int shm;
 
-    sem_t *startSem;
-    sem_t *middleSem;
-    sem_t *finishSem;
+    sem_t **startSem;
+    sem_t **middleSem;
+    sem_t **finishSem;
 } Runner;
 
 Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount);
@@ -31,11 +29,7 @@ Runner* create_random_runner(uint width, uint height, uint turnsCount, uint work
 
 Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount);
 
-void destroy_runner(Runner *runner);
-
-void copy_runner(void *dest, Field *field);
-
-void run(Runner *runner);
+int run(Runner *runner);
 
 void print_state(const Runner *runner);
 
