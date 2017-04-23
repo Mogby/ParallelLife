@@ -63,18 +63,7 @@ typedef struct _simulation_arguments_struct {
 } SimulationArguments;
 
 void* simulate_chunk(SimulationArguments *args) {
-    int out;
-
-    assert(!sem_getvalue(args->runner->startSem[args->workerId], &out));
-    assert(!out);
-
-    assert(!sem_getvalue(args->runner->middleSem[args->workerId], &out));
-    assert(!out);
-
-    assert(!sem_getvalue(args->runner->finishSem[args->workerId], &out));
-    assert(!out);
-
-    while (args->runner->currentTurn < args->runner->turnsCount) {
+   while (args->runner->currentTurn < args->runner->turnsCount) {
         sem_post(args->runner->startSem[args->workerId]);
 
         simulate_step(args->runner->field, args->runner->tmpField, args->lowerBound, args->upperBound);
@@ -112,17 +101,6 @@ int run(Runner *runner) {
 
         arguments[index].workerId = index;
         arguments[index].runner = runner;
-
-        int out;
-
-        assert(!sem_getvalue(runner->startSem[index], &out));
-        assert(!out);
-
-        assert(!sem_getvalue(runner->middleSem[index], &out));
-        assert(!out);
-
-        assert(!sem_getvalue(runner->finishSem[index], &out));
-        assert(!out);
 
         pid = fork();
         if (pid) {
