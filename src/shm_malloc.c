@@ -39,7 +39,7 @@ void appendAlloc(AllocRecord *record) {
 }
 
 void* shm_malloc(size_t size) {
-    char name[] = "/shm_life_000000";
+    char name[] = "/tmp/shm_life_000000";
     int tmpCount = allocsCount++;
     int index = strlen(name) - 1;
     while (tmpCount) {
@@ -48,7 +48,7 @@ void* shm_malloc(size_t size) {
         tmpCount /= 10;
     }
 
-    int fileDescriptor = shm_open(name, O_RDWR | O_CREAT, 0777);
+    int fileDescriptor = open(name, O_RDWR | O_CREAT, 0777);
     ftruncate(fileDescriptor, size);
     void *address = mmap(NULL, size, PROT_WRITE | PROT_READ,
                          MAP_SHARED, fileDescriptor, 0);
@@ -61,7 +61,7 @@ void* shm_malloc(size_t size) {
 void shm_unlink_all() {
     AllocRecord *currentRecord = allocList;
     while (currentRecord) {
-        shm_unlink(currentRecord->shmName);
+        unlink(currentRecord->shmName);
         currentRecord = currentRecord->next;
     }
 }
