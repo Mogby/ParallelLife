@@ -3,11 +3,12 @@
 #define RUNNER_H
 
 #include <pthread.h>
-#include <semaphore.h>
 
 typedef unsigned int uint;
 
 typedef struct _field_struct Field;
+
+typedef struct _barrier_struct Barrier;
 
 typedef struct _runner_struct {
     uint turnsCount;
@@ -19,9 +20,8 @@ typedef struct _runner_struct {
     uint workersCount;
     pthread_t *workers;
 
-    sem_t *startSem;
-    sem_t *middleSem;
-    sem_t *finishSem;
+    Barrier *startBarrier;
+    Barrier *finishBarrier;
 } Runner;
 
 Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount);

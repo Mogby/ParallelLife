@@ -1,10 +1,61 @@
+#include "runner.h"
+#include "field.h"
+#include "life.h"
+
+#include <semaphore.h>
+
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "runner.h"
-#include "field.h"
-#include "life.h"
+struct _barrier_struct {
+    sem_t *semaphore;
+    pthread_mutex_t *mutex;
+    uint maximumValue;
+    uint currentValue;
+};
+
+Barrier* create_barrier(uint maximumValue) {
+    Barrier *result = (Barrier*)malloc(sizeof(Barrier));
+
+    result->semaphore = (sem_t*)malloc(sizeof(sem_t));
+    sem_init(result->semaphore, 0, 0);
+
+    result->mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(result->mutex, NULL);
+
+    result->maximumValue = maximumValue;
+    result->currentValue = 0;
+
+    return result;
+}
+
+void destroy_barrier(Barrier *barrier) {
+    sem_destroy(barrier->semaphore);
+    pthread_mutex_destroy(barrier->mutex);
+    free(barrier);
+}
+
+void barrier_wait(Barrier *barrier) {
+    pthread_mutex_lock(barrier->mutex);
+
+    ++barrier->currentValue;
+
+    if (barrier->currentValue == barrier->maximumValue) {
+        barrier->currentValue = 0;
+
+        for (uint count = 1; count < barrier->maximumValue; ++count) {
+            sem_post(barrier->semaphore);
+        }
+
+        pthread_mutex_unlock(barrier->mutex);
+        return;
+    }
+
+    pthread_mutex_unlock(barrier->mutex);
+
+    sem_wait(barrier->semaphore);
+}
 
 Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount) {
     Runner *result = (Runner*)malloc(sizeof(Runner));
@@ -18,15 +69,8 @@ Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint worke
     result->workersCount = workersCount;
     result->workers = (pthread_t*)malloc(sizeof(pthread_t) * workersCount);
 
-    result->startSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
-    result->middleSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
-    result->finishSem = (sem_t*)malloc(sizeof(sem_t) * workersCount);
-
-    for (uint index = 0; index < workersCount; ++index) {
-        sem_init(result->startSem + index, 0, 0);
-        sem_init(result->middleSem + index, 0, 0);
-        sem_init(result->finishSem + index, 0, 0);
-    }
+    result->startBarrier = create_barrier(workersCount + 1);
+    result->finishBarrier = create_barrier(workersCount + 1);
 
     return result;
 }
@@ -57,11 +101,8 @@ void destroy_runner(Runner *runner) {
 
     free(runner->workers);
 
-    for (uint index = 0; index < runner->workersCount; ++index) {
-        sem_destroy(runner->startSem + index);
-        sem_destroy(runner->middleSem + index);
-        sem_destroy(runner->finishSem + index);
-    }
+    destroy_barrier(runner->startBarrier);
+    destroy_barrier(runner->finishBarrier);
 
     free(runner);
 }
@@ -69,20 +110,18 @@ void destroy_runner(Runner *runner) {
 typedef struct _simulation_arguments_struct {
     uint lowerBound;
     uint upperBound;
-    uint workerId;
     Runner *runner;
+    uint turnsCount;
 } SimulationArguments;
 
 void* simulate_chunk(void *arguments) {
     SimulationArguments *args = (SimulationArguments*)arguments;
-    while (args->runner->currentTurn < args->runner->turnsCount) {
-        sem_post(args->runner->startSem + args->workerId);
+    while (args->turnsCount--) {
+        barrier_wait(args->runner->startBarrier);
 
         simulate_step(args->runner->field, args->runner->tmpField, args->lowerBound, args->upperBound);
 
-        sem_post(args->runner->middleSem + args->workerId);
-
-        sem_wait(args->runner->finishSem + args->workerId);
+        barrier_wait(args->runner->finishBarrier);
     }
 
     return NULL;
@@ -103,37 +142,26 @@ void run(Runner *runner) {
     for (uint index = 0; index < runner->workersCount; ++index) {
         if (index == runner->workersCount - 1) {
             //If area of field is not divisible by number of workers, the last worker must take all remaining cells
-            arguments[runner->workersCount - 1].lowerBound = (runner->workersCount - 1) * chunkSize;
-            arguments[runner->workersCount - 1].upperBound = runner->field->width * runner->field->height;
+            arguments[index].upperBound = runner->field->width * runner->field->height;
+            arguments[index].lowerBound = (runner->workersCount - 1) * chunkSize;
         } else {
             arguments[index].lowerBound = index * chunkSize;
             arguments[index].upperBound = (index + 1) * chunkSize;
         }
 
-        arguments[index].workerId = index;
         arguments[index].runner = runner;
+        arguments[index].turnsCount = runner->turnsCount;
         pthread_create(&runner->workers[index], 0, simulate_chunk, &arguments[index]);
     }
 
     while (runner->currentTurn < runner->turnsCount) {
-        //Waiting for workers to start a new iteration
-        for (uint index = 0; index < runner->workersCount; ++index) {
-            sem_wait(runner->startSem + index);
-        }
+        barrier_wait(runner->startBarrier);
 
         ++runner->currentTurn;
 
-        //Wait for all workers to finish
-        for (uint index = 0; index < runner->workersCount; ++index) {
-            sem_wait(runner->middleSem + index);
-        }
+        barrier_wait(runner->finishBarrier);
 
         swap_fields(runner);
-
-        //Resume workers;
-        for (uint index = 0; index < runner->workersCount; ++index) {
-            sem_post(runner->finishSem + index);
-        }
     }
 
     for (uint index = 0; index < runner->workersCount; ++index) {
