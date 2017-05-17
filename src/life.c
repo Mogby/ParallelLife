@@ -3,8 +3,8 @@
 #include "life.h"
 #include "field.h"
 
-Field* create_random_configuration(uint width, uint height) {
-    Field *field = create_empty_field(width, height);
+Field *create_random_configuration(uint width, uint height, char initialize) {
+    Field *field = create_empty_field(width, height, initialize);
 
     for (int xPos = 0; xPos < width; ++xPos) {
         for (int yPos = 0; yPos < height; ++yPos) {

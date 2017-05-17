@@ -17,7 +17,7 @@ typedef struct _field_struct {
     ECellStatus **cells;
 } Field;
 
-Field* create_empty_field(uint width, uint height);
+Field *create_empty_field(uint width, uint height, char initialize);
 
 void destroy_field(Field *field);
 

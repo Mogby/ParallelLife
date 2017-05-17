@@ -5,6 +5,8 @@
 #include <memory.h>
 #include <semaphore.h>
 
+void* shm_try_open(size_t size);
+
 void* shm_malloc(size_t size);
 
 void shm_unlink_all();

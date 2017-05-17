@@ -9,16 +9,21 @@
 #include "field.h"
 #include "life.h"
 
-Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount) {
+Runner *create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount, Parameters *parameters,
+                            char initialize) {
     Runner *result = (Runner*)shm_malloc(sizeof(Runner));
 
-    result->turnsCount = turnsCount;
-    result->currentTurn = 0;
+    if (initialize) {
+        result->turnsCount = turnsCount;
+        result->currentTurn = 0;
+    }
 
-    result->field = create_empty_field(width, height);
-    result->tmpField = create_empty_field(width, height);
+    result->field = create_empty_field(width, height, initialize);
+    result->tmpField = create_empty_field(width, height, initialize);
 
-    result->workersCount = workersCount;
+    if (initialize) {
+        result->workersCount = workersCount;
+    }
 
     result->workers = (pid_t*)shm_malloc(sizeof(pid_t) * workersCount);
 
@@ -26,31 +31,41 @@ Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint worke
     result->middleSem = (sem_t**)shm_malloc(sizeof(sem_t*) * workersCount);
     result->finishSem = (sem_t**)shm_malloc(sizeof(sem_t*) * workersCount);
 
-    for (uint index = 0; index < workersCount; ++index) {
-        result->startSem[index] = shm_create_semaphore();
-        result->middleSem[index] = shm_create_semaphore();
-        result->finishSem[index] = shm_create_semaphore();
+    if (initialize) {
+        for (uint index = 0; index < workersCount; ++index) {
+            result->startSem[index] = shm_create_semaphore();
+            result->middleSem[index] = shm_create_semaphore();
+            result->finishSem[index] = shm_create_semaphore();
+        }
+    }
+
+    result->parameters = parameters;
+
+    return result;
+}
+
+Runner *create_random_runner(uint width, uint height, uint turnsCount, uint workersCount, Parameters *parameters,
+                             char initialize) {
+    Runner *result = create_empty_runner(width, height, turnsCount, workersCount, parameters, initialize);
+
+    if (initialize) {
+        result->field = create_random_configuration(width, height, initialize);
     }
 
     return result;
 }
 
-Runner* create_random_runner(uint width, uint height, uint turnsCount, uint workersCount) {
-    Runner *result = create_empty_runner(width, height, turnsCount, workersCount);
+Runner *create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount, Parameters *parameters,
+                                  char initialize) {
+    Runner *result = create_empty_runner(width, height, turnsCount, workersCount, parameters, initialize);
 
-    result->field = create_random_configuration(width, height);
-
-    return result;
-}
-
-Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount) {
-    Runner *result = create_empty_runner(width, height, turnsCount, workersCount);
-
-    set_cell(result->field, 1, 0, 1);
-    set_cell(result->field, 2, 1, 1);
-    set_cell(result->field, 2, 2, 1);
-    set_cell(result->field, 1, 2, 1);
-    set_cell(result->field, 0, 2, 1);
+    if (initialize) {
+        set_cell(result->field, 1, 0, 1);
+        set_cell(result->field, 2, 1, 1);
+        set_cell(result->field, 2, 2, 1);
+        set_cell(result->field, 1, 2, 1);
+        set_cell(result->field, 0, 2, 1);
+    }
 
     return result;
 }

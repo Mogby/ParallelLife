@@ -38,6 +38,23 @@ void appendAlloc(AllocRecord *record) {
     allocList = record;
 }
 
+void* shm_try_open(size_t size) {
+    char name[] = "/tmp/shm_life_000000";
+    int tmpCount = allocsCount;
+    int index = strlen(name) - 1;
+    while (tmpCount) {
+        assert(index > strlen(name) - 6);
+        name[index--] = tmpCount % 10 + '0';
+        tmpCount /= 10;
+    }
+
+    if (!access(name, R_OK | W_OK)) {
+        return shm_malloc(size);
+    }
+
+    return 0;
+}
+
 void* shm_malloc(size_t size) {
     char name[] = "/tmp/shm_life_000000";
     int tmpCount = allocsCount++;
@@ -125,8 +142,7 @@ sem_t* shm_create_semaphore() {
         tmpCount /= 10;
     }
 
-    sem_t *newSemaphore = sem_open(name, O_EXCL | O_CREAT, 0777, 0);
-    assert(newSemaphore > 0);
+    sem_t *newSemaphore = sem_open(name, O_CREAT, 0777, 0);
     appendSemaphore(createSemaphoreRecord(name, newSemaphore));
     return newSemaphore;
 }

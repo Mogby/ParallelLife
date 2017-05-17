@@ -3,14 +3,6 @@
 #include "runner.h"
 #include "shm_malloc.h"
 
-typedef struct _parameters_struct {
-    uint threadsCount;
-    uint fieldWidth;
-    uint fieldHeight;
-    uint turnsCount;
-    char gliderTest;
-} Parameters;
-
 error_t parse_argument(int key, char *arg, struct argp_state *state) {
     Parameters *parameters = (Parameters*)state->input;
 
@@ -82,26 +74,47 @@ Parameters get_parameters(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-    Parameters parameters = get_parameters(argc, argv);
+    Parameters newParameters;
+    newParameters.gliderTest = 0;
+    newParameters = get_parameters(argc, argv);
+    newParameters.isCorrect = 0;
 
-    if (parameters.gliderTest && parameters.fieldWidth < 3 || parameters.fieldHeight < 3) {
+    Parameters *oldParameters = shm_try_open(sizeof(newParameters));
+    Parameters *parameters;
+
+    char initialize = 1;
+    if (oldParameters &&
+        oldParameters->isCorrect &&
+        oldParameters->fieldHeight == newParameters.fieldHeight &&
+        oldParameters->fieldWidth == newParameters.fieldWidth &&
+        oldParameters->turnsCount == newParameters.turnsCount &&
+        oldParameters->gliderTest == newParameters.gliderTest &&
+        oldParameters->threadsCount == newParameters.threadsCount) {
+        parameters = oldParameters;
+        initialize = 0;
+    } else {
+        parameters = shm_malloc(sizeof(Parameters));
+        *parameters = newParameters;
+    }
+
+    if (parameters->gliderTest && parameters->fieldWidth < 3 || parameters->fieldHeight < 3) {
         //Glider won't fit on a field of the given size.
         return EINVAL;
     }
 
     Runner *runner;
-    if (parameters.gliderTest) {
-        runner = create_glider_test_runner(parameters.fieldWidth, parameters.fieldHeight,
-                                           parameters.turnsCount, parameters.threadsCount);
+    if (parameters->gliderTest) {
+        runner = create_glider_test_runner(parameters->fieldWidth, parameters->fieldHeight, parameters->turnsCount,
+                                           parameters->threadsCount, parameters, initialize);
     } else {
-        runner = create_random_runner(parameters.fieldWidth, parameters.fieldHeight,
-                                      parameters.turnsCount, parameters.threadsCount);
+        runner = create_random_runner(parameters->fieldWidth, parameters->fieldHeight, parameters->turnsCount,
+                                      parameters->threadsCount, parameters, initialize);
     }
 
     if (!run(runner)) {
         shm_close_sems();
         shm_free_sems();
-        shm_unlink_all();
+        //shm_unlink_all();
         shm_free_records();
 
         return 0;
@@ -113,8 +126,8 @@ int main(int argc, char **argv) {
     shm_destroy_sems();
     shm_free_sems();
 
-    shm_unmap_and_close_all();
-    shm_unlink_all();
+    //shm_unmap_and_close_all();
+    //shm_unlink_all();
     shm_free_records();
 
     return 0;

@@ -8,6 +8,15 @@ typedef unsigned int uint;
 
 typedef struct _field_struct Field;
 
+typedef struct _parameters_struct {
+    uint threadsCount;
+    uint fieldWidth;
+    uint fieldHeight;
+    uint turnsCount;
+    char gliderTest;
+    char isCorrect;
+} Parameters;
+
 typedef struct _runner_struct {
     uint turnsCount;
     uint currentTurn;
@@ -21,13 +30,18 @@ typedef struct _runner_struct {
     sem_t **startSem;
     sem_t **middleSem;
     sem_t **finishSem;
+
+    Parameters *parameters;
 } Runner;
 
-Runner* create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount);
+Runner *create_empty_runner(uint width, uint height, uint turnsCount, uint workersCount, Parameters *parameters,
+                            char initialize);
 
-Runner* create_random_runner(uint width, uint height, uint turnsCount, uint workersCount);
+Runner *create_random_runner(uint width, uint height, uint turnsCount, uint workersCount, Parameters *parameters,
+                             char initialize);
 
-Runner* create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount);
+Runner *create_glider_test_runner(uint width, uint height, uint turnsCount, uint workersCount, Parameters *parameters,
+                                  char initialize);
 
 int run(Runner *runner);
 

@@ -6,7 +6,7 @@ typedef unsigned int uint;
 
 typedef struct _field_struct Field;
 
-Field* create_random_configuration(uint width, uint height);
+Field *create_random_configuration(uint width, uint height, char initialize);
 
 uint neighbours_count(const Field *field, int xPos, int yPos);
 
