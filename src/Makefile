@@ -18,4 +18,12 @@ mylib.o:
 
 .PHONY: clean
 clean:
-	rm *.o main libmylib.so
+	rm *.o *.s *.ppd main libmylib.so
+
+.PHONY: assembly
+assembly:
+	gcc -S ./main.c && gcc -S ./mylib.c
+
+.PHONY: preprocess
+preprocess:
+	gcc -E ./main.c > main.ppd && gcc -E ./mylib.c > mylib.ppd

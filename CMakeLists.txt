@@ -11,4 +11,4 @@ add_library(mylib src/mylib.c)
 
 add_executable(life ${SOURCE_FILES})
 
-target_link_libraries(life ${CMAKE_THREAD_LIBS_INIT} mylib)
+target_link_libraries(life ${CMAKE_THREAD_LIBS_INIT} mylib -ldl)
