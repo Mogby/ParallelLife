@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 find_package(Threads)
 
-set(SOURCE_FILES src/main.c src/field.c src/life.c src/runner.c)
+set(SOURCE_FILES src/main.c)
 
 add_executable(life ${SOURCE_FILES})
 
